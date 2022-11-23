@@ -52,34 +52,19 @@ class TestbedDataset(InMemoryDataset):
                 return row[1:]
         return False
 
-    # Customize the process method to fit the task of drug-target affinity prediction
-    # Inputs:
-    # XD - list of SMILES, XT: list of encoded target (categorical or one-hot),
-    # Y: list of labels (i.e. affinity)
-    # Return: PyTorch-Geometric format processed data
     def process(self, xd, y, smile_graph):
         assert (len(xd) == len(y)), "The three lists must be the same length!"
         data_list = []
         data_len = len(xd)
-        print('number of data', data_len)
         for i in range(data_len):
-            # print('Converting SMILES to graph: {}/{}'.format(i+1, data_len))
             smiles = xd[i]
             labels = y[i]
-            # convert SMILES to molecular representation using rdkit
-#            print('----------------------------------------------')
-#            print(smile_graph[i])
             c_size, features, edge_index = smile_graph[i]
-            # make the graph ready for PyTorch Geometrics GCN algorithms:
-#            print(len(c_size))
             for j in range(len(c_size)):
-#                print(j)
                 GCNData = DATA.Data(x=torch.Tensor(features[j]),
                                     edge_index=torch.LongTensor(edge_index[j]).transpose(1, 0),
                                     y=torch.Tensor([labels]))
 
-    
-#                GCNData.cell = torch.FloatTensor([new_cell])
                 GCNData.__setitem__('c_size', torch.LongTensor([c_size[j]]))
                 # append graph, label and target sequence to data list
                 data_list.append(GCNData)
@@ -94,41 +79,3 @@ class TestbedDataset(InMemoryDataset):
         data, slices = self.collate(data_list)
         # save preprocessed data:
         torch.save((data, slices), self.processed_paths[0])
-
-def rmse(y,f):
-    rmse = sqrt(((y - f)**2).mean(axis=0))
-    return rmse
-def save_AUCs(AUCs, filename):
-    with open(filename, 'a') as f:
-        f.write('\t'.join(map(str, AUCs)) + '\n')
-def mse(y,f):
-    mse = ((y - f)**2).mean(axis=0)
-    return mse
-def pearson(y,f):
-    rp = np.corrcoef(y, f)[0,1]
-    return rp
-def spearman(y,f):
-    rs = stats.spearmanr(y, f)[0]
-    return rs
-def ci(y,f):
-    ind = np.argsort(y)
-    y = y[ind]
-    f = f[ind]
-    i = len(y)-1
-    j = i-1
-    z = 0.0
-    S = 0.0
-    while i > 0:
-        while j >= 0:
-            if y[i] > y[j]:
-                z = z+1
-                u = f[i] - f[j]
-                if u > 0:
-                    S = S + 1
-                elif u == 0:
-                    S = S + 0.5
-            j = j - 1
-        i = i - 1
-        j = i-1
-    ci = S/z
-    return ci
